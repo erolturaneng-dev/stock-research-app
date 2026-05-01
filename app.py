@@ -1709,11 +1709,11 @@ def render_opportunity_candidate_cards(df):
             f"</div>"
         )
 
-        st.markdown(card_html, unsafe_allow_html=True)
+                st.markdown(card_html, unsafe_allow_html=True)
 
-       if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
-    st.session_state.jump_to_single_ticker = ticker
-    st.rerun()
+        if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
+            st.session_state.jump_to_single_ticker = ticker
+            st.rerun()
     st.markdown("---")
     st.markdown("## Fırsat Listesi")
     st.caption(
