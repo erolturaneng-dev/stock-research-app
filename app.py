@@ -15,8 +15,17 @@ st.set_page_config(
 # PAGE ROUTING STATE
 # ==================================================
 
+MODE_OPTIONS = [
+    "Fırsat Tarayıcısı",
+    "Sektör Tarayıcısı",
+    "Tek Şirket Analizi",
+]
+
 if "current_mode" not in st.session_state:
     st.session_state.current_mode = "Fırsat Tarayıcısı"
+
+if "mode_radio" not in st.session_state:
+    st.session_state.mode_radio = st.session_state.current_mode
 
 if "selected_single_ticker" not in st.session_state:
     st.session_state.selected_single_ticker = "BBAI"
@@ -25,17 +34,11 @@ if "auto_run_single" not in st.session_state:
     st.session_state.auto_run_single = False
 
 if "jump_to_single_ticker" in st.session_state:
-    st.session_state.selected_single_ticker = st.session_state.jump_to_single_ticker
+    st.session_state.selected_single_ticker = clean_ticker(st.session_state.jump_to_single_ticker)
     st.session_state.current_mode = "Tek Şirket Analizi"
+    st.session_state.mode_radio = "Tek Şirket Analizi"
     st.session_state.auto_run_single = True
     del st.session_state.jump_to_single_ticker
-
-st.title("Emerging Tech Stock Research Platform")
-st.caption(
-    "AI, uzay, savunma teknolojileri, kuantum, siber güvenlik, enerji, robotik ve yarı iletken "
-    "şirketlerini ücretsiz halka açık veri kaynaklarıyla tarayan araştırma platformu."
-)
-
 # ==================================================
 # CORE SECTOR LISTS
 # ==================================================
