@@ -1604,10 +1604,6 @@ def render_opportunity_candidate_cards(df):
         "Adaylar fırsat skoruna göre sıralanır. Yeşil güçlü, sarı izlenebilir, kırmızı daha riskli/zayıf görünümü gösterir."
     )
 
-    if df is None or df.empty:
-        st.info("Gösterilecek aday bulunamadı.")
-        return
-
     display_df = df.copy()
     display_df = display_df.sort_values(
         ["Opportunity Score", "Risk Score", "Piyasa Değeri Raw"],
@@ -1629,195 +1625,82 @@ def render_opportunity_candidate_cards(df):
 
         style = get_opportunity_card_style(opportunity, risk)
 
-        card_html = (
-            f"<div style='background:{style['bg']};"
-            f"border:2px solid {style['border']};"
-            f"border-radius:16px;"
-            f"padding:18px;"
-            f"margin:14px 0 8px 0;"
-            f"box-shadow:0 1px 6px rgba(0,0,0,0.06);'>"
-
-            f"<div style='display:flex;"
-            f"justify-content:space-between;"
-            f"align-items:flex-start;"
-            f"gap:12px;"
-            f"flex-wrap:wrap;'>"
-
-            f"<div>"
-            f"<div style='font-size:22px;font-weight:800;color:#111;'>"
-            f"{style['emoji']} {ticker} — {company}"
-            f"</div>"
-            f"<div style='font-size:14px;color:#555;margin-top:4px;'>"
-            f"{tags}"
-            f"</div>"
-            f"</div>"
-
-            f"<div style='background:white;"
-            f"color:{style['text']};"
-            f"border:1px solid {style['border']};"
-            f"border-radius:999px;"
-            f"padding:6px 12px;"
-            f"font-weight:700;"
-            f"white-space:nowrap;'>"
-            f"{style['label']}"
-            f"</div>"
-
-            f"</div>"
-
-            f"<div style='display:grid;"
-            f"grid-template-columns:repeat(5, minmax(120px, 1fr));"
-            f"gap:12px;"
-            f"margin-top:16px;'>"
-
-            f"<div>"
-            f"<div style='font-size:12px;color:#666;'>Fiyat</div>"
-            f"<div style='font-size:20px;font-weight:700;'>{price}</div>"
-            f"</div>"
-
-            f"<div>"
-            f"<div style='font-size:12px;color:#666;'>Piyasa Değeri</div>"
-            f"<div style='font-size:20px;font-weight:700;'>{market_cap}</div>"
-            f"</div>"
-
-            f"<div>"
-            f"<div style='font-size:12px;color:#666;'>Fırsat</div>"
-            f"<div style='font-size:20px;font-weight:700;color:{style['text']};'>"
-            f"{opportunity}/100"
-            f"</div>"
-            f"</div>"
-
-            f"<div>"
-            f"<div style='font-size:12px;color:#666;'>Risk</div>"
-            f"<div style='font-size:20px;font-weight:700;'>{risk}/100</div>"
-            f"</div>"
-
-            f"<div>"
-            f"<div style='font-size:12px;color:#666;'>Momentum</div>"
-            f"<div style='font-size:20px;font-weight:700;'>{momentum}/100</div>"
-            f"</div>"
-
-            f"</div>"
-
-            f"<div style='margin-top:12px;font-size:14px;color:#333;'>"
-            f"<b>Etiket:</b> {research_label}"
-            f"</div>"
-
-            f"<div style='margin-top:8px;font-size:13px;color:#555;line-height:1.45;'>"
-            f"{notes}"
-            f"</div>"
-
-            f"</div>"
-        )
-
-                st.markdown(card_html, unsafe_allow_html=True)
-
-        if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
-            st.session_state.jump_to_single_ticker = ticker
-            st.rerun()
-    st.markdown("---")
-    st.markdown("## Fırsat Listesi")
-    st.caption(
-        "Adaylar fırsat skoruna göre sıralanır. Yeşil güçlü, sarı izlenebilir, kırmızı daha riskli/zayıf görünümü gösterir."
-    )
-
-    display_df = df.copy()
-    display_df = display_df.sort_values(
-        ["Opportunity Score", "Risk Score", "Piyasa Değeri Raw"],
-        ascending=[False, True, True],
-        na_position="last",
-    ).reset_index(drop=True)
-
-    for i, row in display_df.iterrows():
-        ticker = str(row.get("Hisse Kodu", "N/A"))
-        company = str(row.get("Şirket Adı", "N/A"))
-        price = row.get("Hisse Fiyatı", "N/A")
-        market_cap = row.get("Piyasa Değeri", "N/A")
-        tags = row.get("Stratejik Etiket", "N/A")
-        opportunity = row.get("Opportunity Score", 0)
-        risk = row.get("Risk Score", 0)
-        momentum = row.get("Momentum Score", 0)
-        research_label = row.get("Araştırma Etiketi", "N/A")
-        notes = row.get("Skor Notları", "")
-
-        style = get_opportunity_card_style(opportunity, risk)
-
-        st.markdown(
-            f"""
+        card_html = f"""
+        <div style="
+            background:{style['bg']};
+            border:2px solid {style['border']};
+            border-radius:16px;
+            padding:18px;
+            margin:14px 0 8px 0;
+            box-shadow:0 1px 6px rgba(0,0,0,0.06);
+        ">
             <div style="
-                background:{style['bg']};
-                border:2px solid {style['border']};
-                border-radius:16px;
-                padding:18px;
-                margin:14px 0 8px 0;
-                box-shadow:0 1px 6px rgba(0,0,0,0.06);
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:12px;
+                flex-wrap:wrap;
             ">
+                <div>
+                    <div style="font-size:22px; font-weight:800; color:#111;">
+                        {style['emoji']} {ticker} — {company}
+                    </div>
+                    <div style="font-size:14px; color:#555; margin-top:4px;">
+                        {tags}
+                    </div>
+                </div>
                 <div style="
-                    display:flex;
-                    justify-content:space-between;
-                    align-items:flex-start;
-                    gap:12px;
-                    flex-wrap:wrap;
+                    background:white;
+                    color:{style['text']};
+                    border:1px solid {style['border']};
+                    border-radius:999px;
+                    padding:6px 12px;
+                    font-weight:700;
+                    white-space:nowrap;
                 ">
-                    <div>
-                        <div style="font-size:22px; font-weight:800; color:#111;">
-                            {style['emoji']} {ticker} — {company}
-                        </div>
-                        <div style="font-size:14px; color:#555; margin-top:4px;">
-                            {tags}
-                        </div>
-                    </div>
-                    <div style="
-                        background:white;
-                        color:{style['text']};
-                        border:1px solid {style['border']};
-                        border-radius:999px;
-                        padding:6px 12px;
-                        font-weight:700;
-                        white-space:nowrap;
-                    ">
-                        {style['label']}
-                    </div>
-                </div>
-
-                <div style="
-                    display:grid;
-                    grid-template-columns:repeat(5, minmax(120px, 1fr));
-                    gap:12px;
-                    margin-top:16px;
-                ">
-                    <div>
-                        <div style="font-size:12px; color:#666;">Fiyat</div>
-                        <div style="font-size:20px; font-weight:700;">{price}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:12px; color:#666;">Piyasa Değeri</div>
-                        <div style="font-size:20px; font-weight:700;">{market_cap}</div>
-                    </div>
-                    <div>
-                        <div style="font-size:12px; color:#666;">Opportunity</div>
-                        <div style="font-size:20px; font-weight:700; color:{style['text']};">{opportunity}/100</div>
-                    </div>
-                    <div>
-                        <div style="font-size:12px; color:#666;">Risk</div>
-                        <div style="font-size:20px; font-weight:700;">{risk}/100</div>
-                    </div>
-                    <div>
-                        <div style="font-size:12px; color:#666;">Momentum</div>
-                        <div style="font-size:20px; font-weight:700;">{momentum}/100</div>
-                    </div>
-                </div>
-
-                <div style="margin-top:12px; font-size:14px; color:#333;">
-                    <b>Etiket:</b> {research_label}
-                </div>
-
-                <div style="margin-top:8px; font-size:13px; color:#555; line-height:1.45;">
-                    {notes}
+                    {style['label']}
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(5, minmax(120px, 1fr));
+                gap:12px;
+                margin-top:16px;
+            ">
+                <div>
+                    <div style="font-size:12px; color:#666;">Fiyat</div>
+                    <div style="font-size:20px; font-weight:700;">{price}</div>
+                </div>
+                <div>
+                    <div style="font-size:12px; color:#666;">Piyasa Değeri</div>
+                    <div style="font-size:20px; font-weight:700;">{market_cap}</div>
+                </div>
+                <div>
+                    <div style="font-size:12px; color:#666;">Opportunity</div>
+                    <div style="font-size:20px; font-weight:700; color:{style['text']};">{opportunity}/100</div>
+                </div>
+                <div>
+                    <div style="font-size:12px; color:#666;">Risk</div>
+                    <div style="font-size:20px; font-weight:700;">{risk}/100</div>
+                </div>
+                <div>
+                    <div style="font-size:12px; color:#666;">Momentum</div>
+                    <div style="font-size:20px; font-weight:700;">{momentum}/100</div>
+                </div>
+            </div>
+
+            <div style="margin-top:12px; font-size:14px; color:#333;">
+                <b>Etiket:</b> {research_label}
+            </div>
+
+            <div style="margin-top:8px; font-size:13px; color:#555; line-height:1.45;">
+                {notes}
+            </div>
+        </div>
+        """
+
+        st.markdown(card_html, unsafe_allow_html=True)
 
         if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
             st.session_state.jump_to_single_ticker = ticker
