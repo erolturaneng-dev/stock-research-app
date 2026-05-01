@@ -2424,6 +2424,6 @@ elif mode == "Tek Şirket Analizi":
     if should_auto_run:
         ticker = st.session_state.selected_single_ticker
 
-    ticker = clean_ticker(ticker)
-    st.session_state.selected_single_ticker = ticker
-    render_quick_company_analysis(ticker)
+    if run_single or should_auto_run:
+        if should_auto_run:
+            ticker = st.session_state.selected_single_ticker)
