@@ -2421,6 +2421,9 @@ elif mode == "Tek Şirket Analizi":
         st.info("Örnek: BBAI, SOUN, RKLB, RDW, RGTI, QUBT, PLTR")
 
     if run_single or should_auto_run:
-        ticker = clean_ticker(ticker)
-        st.session_state.selected_single_ticker = ticker
-        render_quick_company_analysis(ticker)
+    if should_auto_run:
+        ticker = st.session_state.selected_single_ticker
+
+    ticker = clean_ticker(ticker)
+    st.session_state.selected_single_ticker = ticker
+    render_quick_company_analysis(ticker)
