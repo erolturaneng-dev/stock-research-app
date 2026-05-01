@@ -1612,7 +1612,7 @@ def render_opportunity_candidate_cards(df):
     ).reset_index(drop=True)
 
     for i, row in display_df.iterrows():
-        ticker = str(row.get("Hisse Kodu", "N/A"))
+        ticker = clean_ticker(row.get("Hisse Kodu", "N/A"))
         company = str(row.get("Şirket Adı", "N/A"))
         price = row.get("Hisse Fiyatı", "N/A")
         market_cap = row.get("Piyasa Değeri", "N/A")
@@ -1625,88 +1625,75 @@ def render_opportunity_candidate_cards(df):
 
         style = get_opportunity_card_style(opportunity, risk)
 
-        card_html = f"""
-        <div style="
-            background:{style['bg']};
-            border:2px solid {style['border']};
-            border-radius:16px;
-            padding:18px;
-            margin:14px 0 8px 0;
-            box-shadow:0 1px 6px rgba(0,0,0,0.06);
-        ">
-            <div style="
-                display:flex;
-                justify-content:space-between;
-                align-items:flex-start;
-                gap:12px;
-                flex-wrap:wrap;
-            ">
-                <div>
-                    <div style="font-size:22px; font-weight:800; color:#111;">
-                        {style['emoji']} {ticker} — {company}
+        if style["label"] == "Güçlü Fırsat":
+            card_icon = "🟢"
+            border_color = "#16a34a"
+            bg_color = "#ecfdf3"
+        elif style["label"] == "İzlenebilir Aday":
+            card_icon = "🟡"
+            border_color = "#eab308"
+            bg_color = "#fef9c3"
+        else:
+            card_icon = "🔴"
+            border_color = "#ef4444"
+            bg_color = "#fee2e2"
+
+        with st.container(border=True):
+            st.markdown(
+                f"""
+                <div style="
+                    background:{bg_color};
+                    border-left:8px solid {border_color};
+                    border-radius:12px;
+                    padding:16px;
+                    margin-bottom:8px;
+                ">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:22px; font-weight:800;">
+                            {card_icon} {ticker} — {company}
+                        </div>
+                        <div style="
+                            background:white;
+                            border:1px solid {border_color};
+                            color:{border_color};
+                            border-radius:999px;
+                            padding:6px 12px;
+                            font-weight:700;
+                        ">
+                            {style["label"]}
+                        </div>
                     </div>
-                    <div style="font-size:14px; color:#555; margin-top:4px;">
+                    <div style="font-size:14px; color:#555; margin-top:6px;">
                         {tags}
                     </div>
                 </div>
-                <div style="
-                    background:white;
-                    color:{style['text']};
-                    border:1px solid {style['border']};
-                    border-radius:999px;
-                    padding:6px 12px;
-                    font-weight:700;
-                    white-space:nowrap;
-                ">
-                    {style['label']}
-                </div>
-            </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-            <div style="
-                display:grid;
-                grid-template-columns:repeat(5, minmax(120px, 1fr));
-                gap:12px;
-                margin-top:16px;
-            ">
-                <div>
-                    <div style="font-size:12px; color:#666;">Fiyat</div>
-                    <div style="font-size:20px; font-weight:700;">{price}</div>
-                </div>
-                <div>
-                    <div style="font-size:12px; color:#666;">Piyasa Değeri</div>
-                    <div style="font-size:20px; font-weight:700;">{market_cap}</div>
-                </div>
-                <div>
-                    <div style="font-size:12px; color:#666;">Opportunity</div>
-                    <div style="font-size:20px; font-weight:700; color:{style['text']};">{opportunity}/100</div>
-                </div>
-                <div>
-                    <div style="font-size:12px; color:#666;">Risk</div>
-                    <div style="font-size:20px; font-weight:700;">{risk}/100</div>
-                </div>
-                <div>
-                    <div style="font-size:12px; color:#666;">Momentum</div>
-                    <div style="font-size:20px; font-weight:700;">{momentum}/100</div>
-                </div>
-            </div>
+            c1, c2, c3, c4, c5 = st.columns(5)
 
-            <div style="margin-top:12px; font-size:14px; color:#333;">
-                <b>Etiket:</b> {research_label}
-            </div>
+            c1.metric("Fiyat", price)
+            c2.metric("Piyasa Değeri", market_cap)
+            c3.metric("Opportunity", f"{opportunity}/100")
+            c4.metric("Risk", f"{risk}/100")
+            c5.metric("Momentum", f"{momentum}/100")
 
-            <div style="margin-top:8px; font-size:13px; color:#555; line-height:1.45;">
-                {notes}
-            </div>
-        </div>
-        """
+            st.write(f"**Etiket:** {research_label}")
 
-        st.markdown(card_html, unsafe_allow_html=True)
+            if notes:
+                st.caption(notes)
 
-        if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
-            st.session_state.jump_to_single_ticker = ticker
-            st.rerun()
-
-
+            if st.button(
+                f"{ticker} için Tek Şirket Analizine Git",
+                key=f"go_single_{ticker}_{i}",
+                type="primary",
+            ):
+                st.session_state.selected_single_ticker = ticker
+                st.session_state.current_mode = "Tek Şirket Analizi"
+                st.session_state.mode_radio = "Tek Şirket Analizi"
+                st.session_state.auto_run_single = True
+                st.rerun()
 # ==================================================
 # QUICK ANALYSIS RENDERER
 # ==================================================
