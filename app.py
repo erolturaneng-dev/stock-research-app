@@ -34,7 +34,7 @@ if "auto_run_single" not in st.session_state:
     st.session_state.auto_run_single = False
 
 if "jump_to_single_ticker" in st.session_state:
-    st.session_state.selected_single_ticker = clean_ticker(st.session_state.jump_to_single_ticker)
+    st.session_state.selected_single_ticker = str(st.session_state.jump_to_single_ticker).upper().strip()
     st.session_state.current_mode = "Tek Şirket Analizi"
     st.session_state.mode_radio = "Tek Şirket Analizi"
     st.session_state.auto_run_single = True
