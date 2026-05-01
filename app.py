@@ -11,6 +11,25 @@ st.set_page_config(
     layout="wide"
 )
 
+# ==================================================
+# PAGE ROUTING STATE
+# ==================================================
+
+if "current_mode" not in st.session_state:
+    st.session_state.current_mode = "Fırsat Tarayıcısı"
+
+if "selected_single_ticker" not in st.session_state:
+    st.session_state.selected_single_ticker = "BBAI"
+
+if "auto_run_single" not in st.session_state:
+    st.session_state.auto_run_single = False
+
+if "jump_to_single_ticker" in st.session_state:
+    st.session_state.selected_single_ticker = st.session_state.jump_to_single_ticker
+    st.session_state.current_mode = "Tek Şirket Analizi"
+    st.session_state.auto_run_single = True
+    del st.session_state.jump_to_single_ticker
+
 st.title("Emerging Tech Stock Research Platform")
 st.caption(
     "AI, uzay, savunma teknolojileri, kuantum, siber güvenlik, enerji, robotik ve yarı iletken "
@@ -178,6 +197,15 @@ STRATEGIC_KEYWORDS = {
         "power infrastructure", "clean energy"
     ],
 }
+
+NAME_PREFILTER_WORDS = [
+    "ai", "artificial", "intelligence", "data", "analytics", "software",
+    "cloud", "cyber", "security", "space", "satellite", "aerospace",
+    "defense", "systems", "quantum", "semiconductor", "robot", "automation",
+    "energy", "nuclear", "power", "storage", "micro", "computer",
+    "digital", "technology", "tech", "communications", "network",
+    "sensor", "vision", "machine", "electric", "infrastructure"
+]
 
 # ==================================================
 # FORMAT HELPERS
@@ -408,6 +436,66 @@ def get_stock_history(ticker):
         return hist
     except Exception:
         return pd.DataFrame()
+
+
+# ==================================================
+# UNIVERSE BUILDERS
+# ==================================================
+
+def build_strategic_universe(extra_tickers=""):
+    rows = []
+    seen = set()
+
+    for sector_name, companies in SECTOR_UNIVERSE.items():
+        for ticker, name in companies:
+            ticker = clean_ticker(ticker)
+            if ticker not in seen:
+                rows.append(
+                    {
+                        "Hisse Kodu": ticker,
+                        "Şirket Adı": name,
+                        "Borsa": "Strategic List",
+                        "Kaynak": sector_name,
+                    }
+                )
+                seen.add(ticker)
+
+    if extra_tickers.strip():
+        for ticker in extra_tickers.split(","):
+            ticker = clean_ticker(ticker)
+            if ticker and ticker not in seen:
+                rows.append(
+                    {
+                        "Hisse Kodu": ticker,
+                        "Şirket Adı": ticker,
+                        "Borsa": "Manual",
+                        "Kaynak": "Manual",
+                    }
+                )
+                seen.add(ticker)
+
+    return pd.DataFrame(rows)
+
+
+def build_broad_tech_universe(symbols_df, max_candidates, extra_tickers=""):
+    if symbols_df.empty:
+        return pd.DataFrame(columns=["Hisse Kodu", "Şirket Adı", "Borsa", "Kaynak"])
+
+    df = symbols_df.copy()
+    df["name_lower"] = df["Şirket Adı"].astype(str).str.lower()
+
+    pattern = "|".join(NAME_PREFILTER_WORDS)
+    df = df[df["name_lower"].str.contains(pattern, na=False, regex=True)]
+    df = df.drop(columns=["name_lower"], errors="ignore")
+    df["Kaynak"] = "Broad Tech Prefilter"
+
+    strategic_df = build_strategic_universe(extra_tickers=extra_tickers)
+
+    combined = pd.concat([strategic_df, df], ignore_index=True)
+    combined["Hisse Kodu"] = combined["Hisse Kodu"].apply(clean_ticker)
+    combined = combined.drop_duplicates(subset=["Hisse Kodu"])
+
+    return combined.head(int(max_candidates)).reset_index(drop=True)
 
 
 # ==================================================
@@ -1348,7 +1436,7 @@ def _component_comment(name, score):
             return "Fırsat potansiyeli var ama daha fazla doğrulama gerekiyor."
         return "Fırsat tarafı zayıf."
 
-    if "Güvenlik" in name or "Safety" in name:
+    if "Güvenlik" in name:
         if score >= 70:
             return "Risk daha kontrollü görünüyor."
         elif score >= 40:
@@ -1466,6 +1554,155 @@ def render_component_score_cards(components_df):
                 """,
                 unsafe_allow_html=True,
             )
+
+
+# ==================================================
+# OPPORTUNITY RESULT CARDS
+# ==================================================
+
+def get_opportunity_card_style(opportunity_score, risk_score):
+    try:
+        opportunity_score = float(opportunity_score)
+        risk_score = float(risk_score)
+    except Exception:
+        opportunity_score = 0
+        risk_score = 100
+
+    if opportunity_score >= 70 and risk_score <= 60:
+        return {
+            "border": "#16a34a",
+            "bg": "#ecfdf3",
+            "text": "#166534",
+            "label": "Güçlü Fırsat",
+            "emoji": "🟢",
+        }
+    elif opportunity_score >= 50 and risk_score <= 75:
+        return {
+            "border": "#eab308",
+            "bg": "#fef9c3",
+            "text": "#854d0e",
+            "label": "İzlenebilir Aday",
+            "emoji": "🟡",
+        }
+    else:
+        return {
+            "border": "#ef4444",
+            "bg": "#fee2e2",
+            "text": "#991b1b",
+            "label": "Riskli / Zayıf",
+            "emoji": "🔴",
+        }
+
+
+def render_opportunity_candidate_cards(df):
+    st.markdown("---")
+    st.markdown("## Fırsat Listesi")
+    st.caption(
+        "Adaylar fırsat skoruna göre sıralanır. Yeşil güçlü, sarı izlenebilir, kırmızı daha riskli/zayıf görünümü gösterir."
+    )
+
+    display_df = df.copy()
+    display_df = display_df.sort_values(
+        ["Opportunity Score", "Risk Score", "Piyasa Değeri Raw"],
+        ascending=[False, True, True],
+        na_position="last",
+    ).reset_index(drop=True)
+
+    for i, row in display_df.iterrows():
+        ticker = str(row.get("Hisse Kodu", "N/A"))
+        company = str(row.get("Şirket Adı", "N/A"))
+        price = row.get("Hisse Fiyatı", "N/A")
+        market_cap = row.get("Piyasa Değeri", "N/A")
+        tags = row.get("Stratejik Etiket", "N/A")
+        opportunity = row.get("Opportunity Score", 0)
+        risk = row.get("Risk Score", 0)
+        momentum = row.get("Momentum Score", 0)
+        research_label = row.get("Araştırma Etiketi", "N/A")
+        notes = row.get("Skor Notları", "")
+
+        style = get_opportunity_card_style(opportunity, risk)
+
+        st.markdown(
+            f"""
+            <div style="
+                background:{style['bg']};
+                border:2px solid {style['border']};
+                border-radius:16px;
+                padding:18px;
+                margin:14px 0 8px 0;
+                box-shadow:0 1px 6px rgba(0,0,0,0.06);
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:flex-start;
+                    gap:12px;
+                    flex-wrap:wrap;
+                ">
+                    <div>
+                        <div style="font-size:22px; font-weight:800; color:#111;">
+                            {style['emoji']} {ticker} — {company}
+                        </div>
+                        <div style="font-size:14px; color:#555; margin-top:4px;">
+                            {tags}
+                        </div>
+                    </div>
+                    <div style="
+                        background:white;
+                        color:{style['text']};
+                        border:1px solid {style['border']};
+                        border-radius:999px;
+                        padding:6px 12px;
+                        font-weight:700;
+                        white-space:nowrap;
+                    ">
+                        {style['label']}
+                    </div>
+                </div>
+
+                <div style="
+                    display:grid;
+                    grid-template-columns:repeat(5, minmax(120px, 1fr));
+                    gap:12px;
+                    margin-top:16px;
+                ">
+                    <div>
+                        <div style="font-size:12px; color:#666;">Fiyat</div>
+                        <div style="font-size:20px; font-weight:700;">{price}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#666;">Piyasa Değeri</div>
+                        <div style="font-size:20px; font-weight:700;">{market_cap}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#666;">Opportunity</div>
+                        <div style="font-size:20px; font-weight:700; color:{style['text']};">{opportunity}/100</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#666;">Risk</div>
+                        <div style="font-size:20px; font-weight:700;">{risk}/100</div>
+                    </div>
+                    <div>
+                        <div style="font-size:12px; color:#666;">Momentum</div>
+                        <div style="font-size:20px; font-weight:700;">{momentum}/100</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:12px; font-size:14px; color:#333;">
+                    <b>Etiket:</b> {research_label}
+                </div>
+
+                <div style="margin-top:8px; font-size:13px; color:#555; line-height:1.45;">
+                    {notes}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button(f"{ticker} için Tek Şirket Analizine Git", key=f"go_single_{ticker}_{i}"):
+            st.session_state.jump_to_single_ticker = ticker
+            st.rerun()
 
 
 # ==================================================
@@ -1652,18 +1889,22 @@ def render_quick_company_analysis(selected_ticker):
 if "watchlist" not in st.session_state:
     st.session_state.watchlist = []
 
+mode_options = [
+    "Fırsat Tarayıcısı",
+    "Sektör Tarayıcısı",
+    "Tek Şirket Analizi",
+]
+
 with st.sidebar:
     st.header("Araştırma Ayarları")
 
     mode = st.radio(
         "Mod seçin",
-        [
-            "Fırsat Tarayıcısı",
-            "Sektör Tarayıcısı",
-            "Tek Şirket Analizi",
-        ],
-        index=0,
+        mode_options,
+        index=mode_options.index(st.session_state.current_mode),
     )
+
+    st.session_state.current_mode = mode
 
     st.markdown("---")
 
@@ -1706,6 +1947,20 @@ if mode == "Fırsat Tarayıcısı":
     with st.sidebar:
         st.markdown("### Tarama Ayarları")
 
+        scan_scope = st.selectbox(
+            "Tarama kapsamı",
+            [
+                "Stratejik teknoloji aday listesi",
+                "Geniş ABD teknoloji taraması",
+            ],
+            index=0,
+            help=(
+                "Stratejik liste hızlıdır ve AI, uzay, savunma, kuantum, siber güvenlik, enerji, robotik "
+                "ve yarı iletken adaylarını tarar. Geniş tarama ABD borsa listesinden teknolojiyle alakalı "
+                "görünen daha fazla şirketi tarar ama daha yavaştır."
+            )
+        )
+
         scan_preset = st.selectbox(
             "Filtre tipi",
             [
@@ -1741,44 +1996,14 @@ if mode == "Fırsat Tarayıcısı":
             max_cap = st.number_input("Maksimum piyasa değeri ($)", min_value=1, value=5_000_000_000, step=100_000_000)
             exclude_biotech = st.checkbox("Biotech / sağlık şirketlerini dışla", value=True)
 
-        scan_method = st.selectbox(
-            "Tarama yöntemi",
-            [
-                "Karışık tarama",
-                "Alfabetik aralık tarama",
-            ],
-            index=0,
-            help="Karışık tarama seçersen hep A harfinden başlamaz; liste içinden rastgele şirketler tarar."
-        )
-
         max_scan = st.slider(
-            "Kaç hisse sembolü taransın?",
+            "Geniş taramada en fazla kaç şirket incelensin?",
             min_value=100,
             max_value=2000,
             value=500,
             step=100,
+            help="Bu ayar sadece geniş ABD teknoloji taramasında kullanılır."
         )
-
-        if scan_method == "Alfabetik aralık tarama":
-            start_index = st.number_input(
-                "Başlangıç sırası",
-                min_value=0,
-                max_value=12000,
-                value=0,
-                step=500,
-                help="Liste alfabetiktir. 0, 500, 1000 gibi değiştirerek farklı harflerden başlayabilirsin."
-            )
-            random_seed = 42
-        else:
-            start_index = 0
-            random_seed = st.number_input(
-                "Karışık tarama numarası",
-                min_value=1,
-                max_value=9999,
-                value=42,
-                step=1,
-                help="Farklı numara girersen farklı şirket grubu taranır."
-            )
 
         extra_tickers = st.text_input(
             "Her zaman eklenecek hisse kodları",
@@ -1796,29 +2021,27 @@ if mode == "Fırsat Tarayıcısı":
             "robotik ve yarı iletken sektörlerindeki halka açık ABD şirketlerini araştırmak için tasarlanmıştır."
         )
 
-        st.markdown("### Ana Modlar")
-
         c1, c2, c3 = st.columns(3)
 
         with c1:
             st.markdown("#### Fırsat Tarayıcısı")
             st.write(
-                "BBAI veya erken dönem PLTR benzeri potansiyel teknoloji hisselerini bulmak için "
-                "fiyat, piyasa değeri, büyüme, momentum, sektör etiketi ve finansal risk filtreleri kullanır."
+                "Erken aşama teknoloji fırsatlarını bulmak için fiyat, piyasa değeri, büyüme, momentum, "
+                "stratejik etiket ve finansal risk filtreleri kullanır."
             )
 
         with c2:
             st.markdown("#### Sektör Tarayıcısı")
             st.write(
-                "AI, Space, Defense, Quantum, Cybersecurity, Energy, Robotics ve Semiconductor alanlarında "
-                "şirketleri Small Cap, Mid Cap ve Large Cap olarak ayırır."
+                "AI, Space, Defense, Quantum, Cybersecurity, Energy, Robotics ve Semiconductor alanlarını "
+                "Small Cap, Mid Cap ve Large Cap olarak ayırır."
             )
 
         with c3:
             st.markdown("#### Tek Şirket Analizi")
             st.write(
-                "Bir hisse kodu için finansal durum, fiyat grafiği, momentum, kontratlar, SEC dosyaları, "
-                "risk skoru ve 6-12 aylık senaryo analizi üretir."
+                "Bir hisse kodu için finansal durum, fiyat grafiği, momentum, kontratlar, SEC dosyaları "
+                "ve 6-12 aylık senaryo analizi üretir."
             )
 
         st.markdown("### Üretilen Skorlar")
@@ -1841,50 +2064,30 @@ if mode == "Fırsat Tarayıcısı":
             st.metric("Genel Skor", "0-100")
             st.caption("Fırsat + risk + momentum + finansal kalite + katalizör.")
 
-        st.markdown("### Hızlı Başlangıç")
-
         st.info(
-            "Sol menüden **Fırsat Tarayıcısı** modunu seç. "
-            "**Dengeli fırsat avı** profiliyle başla. "
-            "Tarama yöntemi olarak **Karışık tarama** seçili kalsın. "
-            "Farklı sonuçlar için karışık tarama numarasını değiştir."
+            "Başlamak için sol menüden **Tarama kapsamı** seç. "
+            "Önerilen başlangıç: **Stratejik teknoloji aday listesi** + **Dengeli fırsat avı**."
         )
 
     if run_opportunity_scan:
-        with st.spinner("Hisse sembol listesi yükleniyor..."):
-            symbols_df = load_nasdaq_symbol_directory()
+        with st.spinner("Tarama listesi hazırlanıyor..."):
+            if scan_scope == "Stratejik teknoloji aday listesi":
+                scan_df = build_strategic_universe(extra_tickers=extra_tickers)
+            else:
+                symbols_df = load_nasdaq_symbol_directory()
+                scan_df = build_broad_tech_universe(
+                    symbols_df=symbols_df,
+                    max_candidates=max_scan,
+                    extra_tickers=extra_tickers,
+                )
+
             sec_df = load_sec_company_tickers()
 
-        if symbols_df.empty:
-            st.error("Hisse sembol listesi yüklenemedi.")
+        if scan_df.empty:
+            st.error("Tarama listesi oluşturulamadı.")
         else:
-            manual = []
-            if extra_tickers.strip():
-                for t in extra_tickers.split(","):
-                    t = clean_ticker(t)
-                    if t:
-                        manual.append(
-                            {
-                                "Hisse Kodu": t,
-                                "Şirket Adı": t,
-                                "Borsa": "Manual",
-                            }
-                        )
-
-            if scan_method == "Karışık tarama":
-                scan_df = symbols_df.sample(
-                    n=min(int(max_scan), len(symbols_df)),
-                    random_state=int(random_seed)
-                ).copy()
-            else:
-                scan_df = symbols_df.iloc[int(start_index): int(start_index) + int(max_scan)].copy()
-
-            if manual:
-                manual_df = pd.DataFrame(manual)
-                scan_df = pd.concat([manual_df, scan_df], ignore_index=True)
-                scan_df = scan_df.drop_duplicates(subset=["Hisse Kodu"])
-
-            st.write(f"Taranacak hisse sembolü sayısı: **{len(scan_df):,}**")
+            st.write(f"Taranacak aday şirket sayısı: **{len(scan_df):,}**")
+            st.caption(f"Tarama kapsamı: **{scan_scope}**")
 
             rows = []
             progress = st.progress(0)
@@ -1894,7 +2097,7 @@ if mode == "Fırsat Tarayıcısı":
 
             for count, (_, row) in enumerate(scan_df.iterrows(), start=1):
                 ticker = clean_ticker(row["Hisse Kodu"])
-                status.write(f"Taranıyor: {ticker} hisse kodu")
+                status.write(f"İnceleniyor: {ticker}")
 
                 info = get_stock_info(ticker)
                 hist = get_stock_history(ticker)
@@ -1952,6 +2155,7 @@ if mode == "Fırsat Tarayıcısı":
                     "Şirket Adı": company_name,
                     "CIK": "N/A",
                     "Borsa": row.get("Borsa") or info.get("Borsa"),
+                    "Kaynak": row.get("Kaynak", scan_scope),
                     "Sektör": sector,
                     "Endüstri": industry,
                     "Stratejik Etiket": scoring["Strategic Tags"],
@@ -1981,7 +2185,7 @@ if mode == "Fırsat Tarayıcısı":
 
             if not rows:
                 st.warning(
-                    "Bu taramada filtrelere uyan aday bulunamadı. Karışık tarama numarasını değiştir veya filtreleri genişlet."
+                    "Bu taramada filtrelere uyan aday bulunamadı. Filtreleri genişletmeyi veya diğer tarama kapsamını seçmeyi deneyebilirsin."
                 )
             else:
                 df = pd.DataFrame(rows)
@@ -2004,6 +2208,7 @@ if mode == "Fırsat Tarayıcısı":
                     "Şirket Adı",
                     "CIK",
                     "Borsa",
+                    "Kaynak",
                     "Sektör",
                     "Endüstri",
                     "Stratejik Etiket",
@@ -2085,21 +2290,7 @@ if mode == "Fırsat Tarayıcısı":
                     "dilution, delisting, likidite ve manipülasyon riski yüksek olabilir."
                 )
 
-                st.markdown("---")
-                st.markdown("## Seçili Hisse Hızlı Analizi")
-
-                analysis_options = df["Hisse Kodu"].astype(str) + " - " + df["Şirket Adı"].astype(str)
-
-                selected_option = st.selectbox(
-                    "Tablodan analiz etmek istediğin hisseyi seç",
-                    analysis_options.tolist(),
-                    index=0,
-                )
-
-                selected_ticker = selected_option.split(" - ")[0].strip()
-
-                if st.button(f"{selected_ticker} için detaylı analiz göster"):
-                    render_quick_company_analysis(selected_ticker)
+                render_opportunity_candidate_cards(df)
 
 
 # ==================================================
@@ -2225,15 +2416,22 @@ elif mode == "Tek Şirket Analizi":
     st.header("Tek Şirket Analizi")
 
     with st.sidebar:
-        ticker = st.text_input("Hisse kodu girin", value="BBAI")
-        company_name_manual = st.text_input("Şirket adı girin", value="BigBear.ai")
+        ticker = st.text_input(
+            "Hisse kodu girin",
+            value=st.session_state.selected_single_ticker,
+        )
+        company_name_manual = st.text_input("Şirket adı girin", value="")
         selected_sector = st.selectbox("Sektör seçin", list(SECTOR_UNIVERSE.keys()), index=0)
         run_single = st.button("Şirketi Analiz Et", type="primary")
 
-    if not run_single:
+    should_auto_run = st.session_state.auto_run_single
+    st.session_state.auto_run_single = False
+
+    if not run_single and not should_auto_run:
         st.write("Sol menüden hisse kodu girip analiz başlatabilirsin.")
         st.info("Örnek: BBAI, SOUN, RKLB, RDW, RGTI, QUBT, PLTR")
 
-    if run_single:
+    if run_single or should_auto_run:
         ticker = clean_ticker(ticker)
+        st.session_state.selected_single_ticker = ticker
         render_quick_company_analysis(ticker)
