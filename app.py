@@ -5,77 +5,139 @@ import requests
 from datetime import datetime, timedelta
 import plotly.graph_objects as go
 
-st.set_page_config(page_title="US Small Cap Research App", layout="wide")
+st.set_page_config(page_title="Emerging Tech Stock Research Platform", layout="wide")
 
-st.title("US Small Cap & Government Contract Research App")
-st.caption("Ücretsiz veri kaynaklarıyla çalışan araştırma paneli: yfinance + USAspending + SEC EDGAR")
+st.title("Emerging Tech Stock Research Platform")
+st.caption(
+    "AI, Space, Defense, Quantum, Cybersecurity, Energy and Semiconductor stock discovery "
+    "using free public data sources: yfinance + USAspending + SEC EDGAR."
+)
 
 # --------------------------------------------------
-# Tema bazlı başlangıç izleme listeleri
+# Sektör evrenleri
 # --------------------------------------------------
 
-THEME_WATCHLISTS = {
+SECTOR_UNIVERSE = {
     "AI": [
-        ("PLTR", "Palantir"),
         ("BBAI", "BigBear.ai"),
         ("SOUN", "SoundHound AI"),
-        ("AI", "C3.ai"),
         ("AISP", "Airship AI"),
+        ("REKR", "Rekor Systems"),
+        ("CXAI", "CXApp"),
+        ("AI", "C3.ai"),
+        ("PATH", "UiPath"),
+        ("PLTR", "Palantir"),
+        ("APP", "AppLovin"),
+        ("UPST", "Upstart"),
+        ("TEM", "Tempus AI"),
+        ("RXRX", "Recursion Pharmaceuticals"),
+        ("VERI", "Veritone"),
+        ("RBRK", "Rubrik"),
+        ("SNOW", "Snowflake"),
+        ("DDOG", "Datadog"),
+        ("MDB", "MongoDB"),
+        ("ESTC", "Elastic"),
+        ("SMCI", "Super Micro Computer"),
+        ("DELL", "Dell Technologies"),
+        ("HPE", "Hewlett Packard Enterprise"),
+        ("ARM", "Arm Holdings"),
+        ("AMD", "AMD"),
+        ("AVGO", "Broadcom"),
+        ("NVDA", "Nvidia"),
+        ("MSFT", "Microsoft"),
+        ("GOOGL", "Alphabet"),
+        ("AMZN", "Amazon"),
+        ("META", "Meta Platforms"),
+        ("ORCL", "Oracle"),
+        ("IBM", "IBM"),
     ],
     "Cybersecurity": [
-        ("CRWD", "CrowdStrike"),
         ("S", "SentinelOne"),
+        ("TENB", "Tenable"),
         ("QLYS", "Qualys"),
         ("CYBR", "CyberArk"),
-        ("TENB", "Tenable"),
+        ("CRWD", "CrowdStrike"),
+        ("PANW", "Palo Alto Networks"),
+        ("ZS", "Zscaler"),
+        ("FTNT", "Fortinet"),
+        ("NET", "Cloudflare"),
+        ("OKTA", "Okta"),
     ],
     "Defense Technology": [
-        ("RKLB", "Rocket Lab"),
         ("KTOS", "Kratos Defense"),
         ("AVAV", "AeroVironment"),
+        ("BKSY", "BlackSky Technology"),
+        ("SPIR", "Spire Global"),
+        ("RKLB", "Rocket Lab"),
         ("ACHR", "Archer Aviation"),
         ("JOBY", "Joby Aviation"),
+        ("LDOS", "Leidos"),
+        ("CACI", "CACI International"),
+        ("LMT", "Lockheed Martin"),
+        ("NOC", "Northrop Grumman"),
+        ("RTX", "RTX Corporation"),
     ],
-    "Space Data": [
-        ("RKLB", "Rocket Lab"),
-        ("ASTS", "AST SpaceMobile"),
-        ("SPIR", "Spire Global"),
+    "Space": [
         ("BKSY", "BlackSky Technology"),
+        ("SPIR", "Spire Global"),
         ("LUNR", "Intuitive Machines"),
         ("RDW", "Redwire"),
+        ("ASTS", "AST SpaceMobile"),
+        ("RKLB", "Rocket Lab"),
+        ("PL", "Planet Labs"),
+        ("BA", "Boeing"),
+        ("LMT", "Lockheed Martin"),
+        ("NOC", "Northrop Grumman"),
     ],
     "Quantum": [
-        ("IONQ", "IonQ"),
-        ("RGTI", "Rigetti Computing"),
         ("QUBT", "Quantum Computing Inc"),
+        ("RGTI", "Rigetti Computing"),
         ("QBTS", "D-Wave Quantum"),
         ("ARQQ", "Arqit Quantum"),
+        ("IONQ", "IonQ"),
+        ("IBM", "IBM"),
+        ("GOOGL", "Alphabet"),
+        ("MSFT", "Microsoft"),
+        ("HON", "Honeywell"),
     ],
     "Energy Infrastructure": [
-        ("SMR", "NuScale Power"),
-        ("OKLO", "Oklo"),
         ("STEM", "Stem Inc"),
         ("FLNC", "Fluence Energy"),
+        ("SMR", "NuScale Power"),
+        ("OKLO", "Oklo"),
         ("NNE", "Nano Nuclear Energy"),
+        ("CEG", "Constellation Energy"),
+        ("VST", "Vistra"),
+        ("GEV", "GE Vernova"),
+        ("ETN", "Eaton"),
+        ("PWR", "Quanta Services"),
     ],
     "Robotics": [
-        ("SYM", "Symbotic"),
-        ("IRBT", "iRobot"),
-        ("TER", "Teradyne"),
         ("SERV", "Serve Robotics"),
         ("RR", "Richtech Robotics"),
+        ("IRBT", "iRobot"),
+        ("SYM", "Symbotic"),
+        ("TER", "Teradyne"),
+        ("ISRG", "Intuitive Surgical"),
+        ("ROK", "Rockwell Automation"),
+        ("ABBNY", "ABB"),
     ],
     "Semiconductor Supply Chain": [
-        ("FORM", "FormFactor"),
-        ("ONTO", "Onto Innovation"),
-        ("ACLS", "Axcelis Technologies"),
-        ("ICHR", "Ichor Holdings"),
         ("AEHR", "Aehr Test Systems"),
+        ("ICHR", "Ichor Holdings"),
+        ("FORM", "FormFactor"),
+        ("ACLS", "Axcelis Technologies"),
+        ("ONTO", "Onto Innovation"),
+        ("AMAT", "Applied Materials"),
+        ("LRCX", "Lam Research"),
+        ("ASML", "ASML"),
+        ("TSM", "Taiwan Semiconductor"),
+        ("NVDA", "Nvidia"),
     ],
 }
 
 # --------------------------------------------------
-# Yardımcı fonksiyonlar
+# Genel yardımcı fonksiyonlar
 # --------------------------------------------------
 
 def safe_get(dictionary, key, default="N/A"):
@@ -126,7 +188,7 @@ def get_market_cap_category(market_cap):
         return "Bilinmiyor"
 
     if market_cap < 50_000_000:
-        return "Nano-cap / çok küçük"
+        return "Nano-cap"
     elif market_cap < 300_000_000:
         return "Micro-cap"
     elif market_cap < 2_000_000_000:
@@ -139,14 +201,47 @@ def get_market_cap_category(market_cap):
         return "Mega-cap"
 
 
+def get_cap_bucket(market_cap):
+    if market_cap is None:
+        return "Unknown"
+
+    try:
+        market_cap = float(market_cap)
+    except Exception:
+        return "Unknown"
+
+    if market_cap < 2_000_000_000:
+        return "Small Cap / Early Candidates"
+    elif market_cap < 10_000_000_000:
+        return "Mid Cap / Growth Candidates"
+    else:
+        return "Large Cap / Sector Leaders"
+
+
+def get_company_role(market_cap, priority_score, risk_score):
+    bucket = get_cap_bucket(market_cap)
+
+    if bucket == "Large Cap / Sector Leaders":
+        return "Sector Leader / Benchmark"
+    if risk_score >= 70:
+        return "High Risk / Needs Review"
+    if priority_score >= 70 and bucket == "Small Cap / Early Candidates":
+        return "Early Candidate"
+    if priority_score >= 60 and bucket == "Mid Cap / Growth Candidates":
+        return "Growth Candidate"
+    if priority_score >= 50:
+        return "Watchlist Candidate"
+    return "Low Priority / Monitor"
+
+
+@st.cache_data(ttl=3600)
 def get_stock_data(ticker):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
         hist = stock.history(period="1y")
         return info, hist
-    except Exception as e:
-        st.error(f"Finansal veri çekilirken hata oluştu: {e}")
+    except Exception:
         return {}, pd.DataFrame()
 
 
@@ -178,7 +273,7 @@ def get_official_company_names(info, manual_name):
 
 def calculate_technical_indicators(hist):
     if hist.empty or len(hist) < 14:
-        return None, None, None
+        return None, None, None, None
 
     close = hist["Close"]
 
@@ -200,13 +295,77 @@ def calculate_technical_indicators(hist):
     except Exception:
         rsi_current = None
 
-    return ma50, ma200, rsi_current
+    try:
+        one_year_return = (close.iloc[-1] / close.iloc[0]) - 1
+    except Exception:
+        one_year_return = None
+
+    return ma50, ma200, rsi_current, one_year_return
+
+
+def calculate_momentum_score(hist):
+    ma50, ma200, rsi_current, one_year_return = calculate_technical_indicators(hist)
+
+    score = 50
+    notes = []
+
+    if hist.empty:
+        return 50, ["Fiyat geçmişi bulunamadı; momentum nötr varsayıldı."]
+
+    try:
+        current_price = float(hist["Close"].iloc[-1])
+
+        if ma50 is not None and not pd.isna(ma50.iloc[-1]):
+            if current_price > ma50.iloc[-1]:
+                score += 10
+                notes.append("Fiyat MA50 üzerinde; kısa/orta vadeli momentum pozitif olabilir.")
+            else:
+                score -= 8
+                notes.append("Fiyat MA50 altında; kısa/orta vadeli momentum zayıf olabilir.")
+
+        if ma200 is not None and not pd.isna(ma200.iloc[-1]):
+            if current_price > ma200.iloc[-1]:
+                score += 10
+                notes.append("Fiyat MA200 üzerinde; uzun vadeli trend pozitif olabilir.")
+            else:
+                score -= 10
+                notes.append("Fiyat MA200 altında; uzun vadeli trend zayıf olabilir.")
+    except Exception:
+        pass
+
+    if rsi_current is not None:
+        if rsi_current > 75:
+            score -= 12
+            notes.append("RSI çok yüksek; aşırı alım riski olabilir.")
+        elif rsi_current > 70:
+            score -= 8
+            notes.append("RSI yüksek; kısa vadede düzeltme riski olabilir.")
+        elif rsi_current < 30:
+            score += 6
+            notes.append("RSI düşük; aşırı satım sonrası tepki ihtimali olabilir.")
+        else:
+            notes.append("RSI nötr bölgede.")
+
+    if one_year_return is not None:
+        if one_year_return > 2:
+            score -= 10
+            notes.append("Son 1 yılda çok güçlü yükseliş var; beklentiler fiyata yansımış olabilir.")
+        elif one_year_return > 0.5:
+            score += 5
+            notes.append("Son 1 yılda güçlü fiyat momentumu var.")
+        elif one_year_return < -0.4:
+            score -= 5
+            notes.append("Son 1 yılda ciddi düşüş var; piyasa güveni zayıf olabilir.")
+
+    score = max(0, min(100, score))
+    return score, notes
 
 
 # --------------------------------------------------
 # USAspending
 # --------------------------------------------------
 
+@st.cache_data(ttl=3600)
 def get_usaspending_contracts_single_name(company_name):
     if not company_name:
         return []
@@ -281,7 +440,6 @@ def summarize_contracts(contracts):
             "dod_total": 0,
             "doe_total": 0,
             "other_total": 0,
-            "agency_list": [],
         }
 
     total = 0
@@ -289,7 +447,6 @@ def summarize_contracts(contracts):
     dod_total = 0
     doe_total = 0
     other_total = 0
-    agencies = set()
 
     for contract in contracts:
         amount = float(contract.get("Award Amount") or 0)
@@ -297,9 +454,6 @@ def summarize_contracts(contracts):
         agency = agency_raw.lower()
 
         total += amount
-
-        if agency_raw:
-            agencies.add(agency_raw)
 
         if "national aeronautics" in agency or "nasa" in agency:
             nasa_total += amount
@@ -317,7 +471,6 @@ def summarize_contracts(contracts):
         "dod_total": dod_total,
         "doe_total": doe_total,
         "other_total": other_total,
-        "agency_list": sorted(list(agencies)),
     }
 
 
@@ -355,6 +508,7 @@ def format_contracts_readable(contracts):
 # SEC EDGAR
 # --------------------------------------------------
 
+@st.cache_data(ttl=86400)
 def get_sec_company_tickers():
     url = "https://www.sec.gov/files/company_tickers.json"
     headers = {
@@ -365,8 +519,7 @@ def get_sec_company_tickers():
         response = requests.get(url, headers=headers, timeout=25)
         response.raise_for_status()
         return response.json()
-    except Exception as e:
-        st.warning(f"SEC ticker listesi çekilemedi: {e}")
+    except Exception:
         return {}
 
 
@@ -391,6 +544,7 @@ def make_sec_filing_link(cik, accession):
     return f"https://www.sec.gov/Archives/edgar/data/{cik_no_zero}/{accession_clean}/"
 
 
+@st.cache_data(ttl=3600)
 def get_sec_recent_filings(ticker):
     cik, sec_name = find_cik_for_ticker(ticker)
 
@@ -430,13 +584,428 @@ def get_sec_recent_filings(ticker):
 
         return cik, sec_name, filings
 
-    except Exception as e:
-        st.warning(f"SEC filing verisi çekilemedi: {e}")
+    except Exception:
         return cik, sec_name, []
 
 
 def get_insider_form4_filings(filings):
     return [f for f in filings if f.get("form") == "4"][:5]
+
+
+# --------------------------------------------------
+# Skorlar
+# --------------------------------------------------
+
+def calculate_financial_health_score(info):
+    score = 50
+    notes = []
+
+    revenue_growth = info.get("revenueGrowth")
+    profit_margins = info.get("profitMargins")
+    operating_margins = info.get("operatingMargins")
+    free_cashflow = info.get("freeCashflow")
+    total_cash = info.get("totalCash")
+    total_debt = info.get("totalDebt")
+    debt_to_equity = info.get("debtToEquity")
+
+    if revenue_growth is not None:
+        if revenue_growth > 0.30:
+            score += 15
+            notes.append("Gelir büyümesi güçlü.")
+        elif revenue_growth > 0.10:
+            score += 8
+            notes.append("Gelir büyümesi pozitif.")
+        elif revenue_growth < 0:
+            score -= 12
+            notes.append("Gelir büyümesi negatif.")
+
+    if profit_margins is not None:
+        if profit_margins > 0.10:
+            score += 12
+            notes.append("Net kâr marjı pozitif ve sağlıklı görünüyor.")
+        elif profit_margins < 0:
+            score -= 15
+            notes.append("Net kâr marjı negatif; kârlılık riski var.")
+
+    if operating_margins is not None:
+        if operating_margins > 0.10:
+            score += 10
+            notes.append("Operasyonel marj pozitif.")
+        elif operating_margins < 0:
+            score -= 10
+            notes.append("Operasyonel marj negatif.")
+
+    if free_cashflow is not None:
+        if free_cashflow > 0:
+            score += 10
+            notes.append("Free cash flow pozitif.")
+        else:
+            score -= 15
+            notes.append("Free cash flow negatif; nakit yakma riski olabilir.")
+
+    if total_cash and total_debt:
+        if total_cash > total_debt:
+            score += 8
+            notes.append("Nakit borçtan yüksek.")
+        elif total_debt > total_cash:
+            score -= 10
+            notes.append("Borç nakitten yüksek.")
+
+    if debt_to_equity is not None:
+        try:
+            if debt_to_equity > 200:
+                score -= 15
+                notes.append("Debt/equity çok yüksek.")
+            elif debt_to_equity > 100:
+                score -= 8
+                notes.append("Debt/equity yüksek.")
+        except Exception:
+            pass
+
+    score = max(0, min(100, score))
+    return score, notes
+
+
+def calculate_catalyst_score(contracts, filings, sector):
+    score = 30
+    notes = []
+
+    contract_summary = summarize_contracts(contracts)
+
+    if contracts:
+        score += 20
+        notes.append("Hükümet kontratı/eşleşmesi bulundu.")
+
+        if contract_summary["nasa_total"] > 0:
+            score += 10
+            notes.append("NASA bağlantılı kontrat var.")
+
+        if contract_summary["dod_total"] > 0:
+            score += 10
+            notes.append("DoD / savunma bağlantılı kontrat var.")
+
+        if contract_summary["doe_total"] > 0:
+            score += 8
+            notes.append("DOE / enerji bağlantılı kontrat var.")
+
+    recent_8k = [f for f in filings if f.get("form") == "8-K"]
+    if recent_8k:
+        score += 5
+        notes.append("Son SEC listesinde 8-K dosyaları var; güncel şirket gelişmeleri izlenebilir.")
+
+    if sector in ["AI", "Quantum", "Space", "Defense Technology", "Cybersecurity", "Energy Infrastructure"]:
+        score += 10
+        notes.append(f"{sector} stratejik büyüme sektörlerinden biri.")
+
+    score = max(0, min(100, score))
+    return score, notes
+
+
+def calculate_research_priority_score(info, contracts, sector, filings):
+    score = 0
+    risk_score = 0
+    notes = []
+
+    market_cap = info.get("marketCap")
+    revenue_growth = info.get("revenueGrowth")
+    beta = info.get("beta")
+
+    financial_score, financial_notes = calculate_financial_health_score(info)
+    catalyst_score, catalyst_notes = calculate_catalyst_score(contracts, filings, sector)
+
+    if market_cap:
+        bucket = get_cap_bucket(market_cap)
+
+        if bucket == "Small Cap / Early Candidates":
+            score += 25
+            notes.append("Small-cap veya daha küçük; erken araştırma adayı olabilir.")
+        elif bucket == "Mid Cap / Growth Candidates":
+            score += 14
+            notes.append("Mid-cap; büyüme adayı olabilir ama çok erken aşama değildir.")
+        elif bucket == "Large Cap / Sector Leaders":
+            score -= 5
+            notes.append("Large-cap / mega-cap; erken fırsat değil, sektör lideri olarak değerlendirilmelidir.")
+        else:
+            risk_score += 8
+
+        if market_cap < 50_000_000:
+            risk_score += 25
+            notes.append("Çok düşük market cap; likidite ve manipülasyon riski yüksek olabilir.")
+    else:
+        risk_score += 10
+        notes.append("Market cap verisi bulunamadı.")
+
+    contract_summary = summarize_contracts(contracts)
+    total_contract_value = contract_summary["total_contract_value"]
+
+    if contracts:
+        score += 18
+        notes.append("USAspending üzerinde kontrat/eşleşme bulundu.")
+
+        if contract_summary["nasa_total"] > 0:
+            score += 7
+        if contract_summary["dod_total"] > 0:
+            score += 7
+        if contract_summary["doe_total"] > 0:
+            score += 5
+
+        try:
+            ratio = total_contract_value / market_cap if market_cap else 0
+            if ratio >= 0.10:
+                score += 25
+                notes.append("Kontrat toplamı market cap'e göre çok anlamlı.")
+            elif ratio >= 0.03:
+                score += 15
+                notes.append("Kontrat toplamı market cap'e göre orta düzeyde anlamlı.")
+            elif ratio >= 0.005:
+                score += 7
+                notes.append("Kontrat toplamı market cap'e göre sınırlı ama izlenebilir.")
+            else:
+                score += 2
+                risk_score += 5
+                notes.append("Kontrat toplamı market cap'e göre çok küçük.")
+        except Exception:
+            pass
+    else:
+        risk_score += 5
+        notes.append("USAspending üzerinde kontrat bulunamadı.")
+
+    if sector in list(SECTOR_UNIVERSE.keys()):
+        score += 10
+        notes.append(f"{sector} sektörü stratejik büyüme alanı olarak işaretlendi.")
+
+    if revenue_growth is not None:
+        try:
+            if revenue_growth > 0.30:
+                score += 12
+            elif revenue_growth > 0.10:
+                score += 6
+            elif revenue_growth < 0:
+                risk_score += 10
+        except Exception:
+            pass
+
+    if financial_score < 35:
+        risk_score += 18
+    elif financial_score < 50:
+        risk_score += 8
+    elif financial_score > 70:
+        score += 7
+
+    if catalyst_score > 70:
+        score += 8
+    elif catalyst_score < 35:
+        risk_score += 5
+
+    try:
+        if beta is not None:
+            if beta > 2:
+                risk_score += 10
+            elif beta > 1.5:
+                risk_score += 5
+    except Exception:
+        pass
+
+    if filings:
+        score += 3
+    else:
+        risk_score += 8
+
+    score = max(0, min(100, score))
+    risk_score = max(0, min(100, risk_score))
+
+    notes.extend(financial_notes[:3])
+    notes.extend(catalyst_notes[:3])
+
+    return score, risk_score, notes
+
+
+# --------------------------------------------------
+# Fiyat senaryo analizi
+# --------------------------------------------------
+
+def generate_price_scenarios(current_price, priority_score, risk_score, momentum_score, financial_score, catalyst_score, market_cap):
+    if current_price is None:
+        return None, "Fiyat verisi bulunamadığı için senaryo üretilemedi."
+
+    try:
+        current_price = float(current_price)
+    except Exception:
+        return None, "Fiyat verisi okunamadığı için senaryo üretilemedi."
+
+    bucket = get_cap_bucket(market_cap)
+
+    if risk_score >= 70:
+        bear_range = (-45, -20)
+        base_range = (-20, 10)
+        bull_range = (10, 45)
+        summary = "Risk yüksek; senaryolar daha geniş ve aşağı yönlü risk daha belirgin."
+    elif priority_score >= 70 and catalyst_score >= 60 and bucket == "Small Cap / Early Candidates":
+        bear_range = (-35, -12)
+        base_range = (-5, 30)
+        bull_range = (35, 100)
+        summary = "Küçük ölçek + güçlü katalizör sinyali varsa yukarı potansiyel yüksek, fakat volatilite de yüksek."
+    elif priority_score >= 60 and bucket == "Mid Cap / Growth Candidates":
+        bear_range = (-30, -10)
+        base_range = (-5, 25)
+        bull_range = (25, 70)
+        summary = "Büyüme adayı görünümü var; yukarı potansiyel katalizörlere bağlı."
+    elif bucket == "Large Cap / Sector Leaders":
+        bear_range = (-25, -8)
+        base_range = (-5, 18)
+        bull_range = (15, 40)
+        summary = "Büyük şirketlerde erken fırsat sınırlı; senaryo daha çok sektör liderliği ve momentumla ilgilidir."
+    else:
+        bear_range = (-35, -12)
+        base_range = (-10, 20)
+        bull_range = (20, 60)
+        summary = "Karışık görünüm; detaylı araştırma gerekir."
+
+    if momentum_score >= 70:
+        base_range = (base_range[0] + 3, base_range[1] + 5)
+        bull_range = (bull_range[0] + 5, bull_range[1] + 10)
+    elif momentum_score <= 35:
+        bear_range = (bear_range[0] - 5, bear_range[1] - 3)
+        base_range = (base_range[0] - 5, base_range[1] - 5)
+
+    if financial_score <= 35:
+        bear_range = (bear_range[0] - 8, bear_range[1] - 5)
+        bull_range = (bull_range[0] - 5, bull_range[1] - 10)
+    elif financial_score >= 70:
+        bear_range = (bear_range[0] + 5, bear_range[1] + 5)
+        base_range = (base_range[0] + 3, base_range[1] + 5)
+
+    def price_range(pct_range):
+        low_pct, high_pct = pct_range
+        low_price = current_price * (1 + low_pct / 100)
+        high_price = current_price * (1 + high_pct / 100)
+        return f"{low_pct}% to {high_pct}%", f"${low_price:.2f} - ${high_price:.2f}"
+
+    bear_pct, bear_price = price_range(bear_range)
+    base_pct, base_price = price_range(base_range)
+    bull_pct, bull_price = price_range(bull_range)
+
+    scenarios = pd.DataFrame(
+        [
+            {
+                "Senaryo": "Bear Case",
+                "Yüzde Aralığı": bear_pct,
+                "Fiyat Aralığı": bear_price,
+                "Mantık": "Finansal riskler, zayıf katalizörler, piyasa düzeltmesi veya sermaye artırımı riski.",
+            },
+            {
+                "Senaryo": "Base Case",
+                "Yüzde Aralığı": base_pct,
+                "Fiyat Aralığı": base_price,
+                "Mantık": "Mevcut büyüme ve sektör ilgisi devam eder, fakat büyük yeni katalizör gelmez.",
+            },
+            {
+                "Senaryo": "Bull Case",
+                "Yüzde Aralığı": bull_pct,
+                "Fiyat Aralığı": bull_price,
+                "Mantık": "Yeni kontrat, güçlü finansal ilerleme, büyük partnerlik veya sektör momentumu güçlenir.",
+            },
+        ]
+    )
+
+    return scenarios, summary
+
+
+def get_outlook_label(priority_score, risk_score, momentum_score, financial_score, catalyst_score):
+    if priority_score >= 70 and risk_score <= 50 and catalyst_score >= 60:
+        return "Positive / Research Candidate"
+    if risk_score >= 70:
+        return "High Risk"
+    if priority_score >= 60:
+        return "Speculative Positive"
+    if momentum_score >= 70 and financial_score >= 50:
+        return "Momentum Positive"
+    if financial_score < 35:
+        return "Financially Risky"
+    return "Neutral / Monitor"
+
+
+# --------------------------------------------------
+# SWOT
+# --------------------------------------------------
+
+def generate_rule_based_swot(info, contracts, sector, priority_score, risk_score):
+    strengths = []
+    weaknesses = []
+    opportunities = []
+    threats = []
+
+    market_cap = info.get("marketCap")
+    sector_info = safe_get(info, "sector")
+    industry = safe_get(info, "industry")
+    profit_margins = info.get("profitMargins")
+    free_cashflow = info.get("freeCashflow")
+    revenue_growth = info.get("revenueGrowth")
+
+    contract_summary = summarize_contracts(contracts)
+
+    if contracts:
+        strengths.append("USAspending verisinde hükümet kontratı/eşleşmesi bulundu.")
+        opportunities.append("Federal kurumlarla iş ilişkisi büyüme katalizörü olabilir.")
+
+        if contract_summary["nasa_total"] > 0:
+            strengths.append("NASA bağlantılı kontrat/eşleşme bulunuyor.")
+
+        if contract_summary["dod_total"] > 0:
+            strengths.append("DoD / savunma bağlantılı kontrat/eşleşme bulunuyor.")
+    else:
+        weaknesses.append("USAspending tarafında şirket adıyla net kontrat eşleşmesi bulunamadı.")
+        threats.append("Hükümet kontratı iddiası varsa ayrıca manuel doğrulama gerekir.")
+
+    if sector in ["AI", "Cybersecurity", "Defense Technology", "Space", "Quantum", "Energy Infrastructure"]:
+        opportunities.append(f"{sector} sektörü uzun vadeli stratejik büyüme alanlarından biri olabilir.")
+
+    if market_cap:
+        bucket = get_cap_bucket(market_cap)
+
+        if bucket == "Small Cap / Early Candidates":
+            strengths.append("Şirket küçük ölçekli olduğu için büyüme potansiyeli yüksek olabilir.")
+            threats.append("Küçük ölçekli şirketlerde likidite, sermaye artırımı ve volatilite riski daha yüksektir.")
+        elif bucket == "Large Cap / Sector Leaders":
+            weaknesses.append("Şirket büyük ölçekli; erken aşama getiri potansiyeli sınırlanmış olabilir.")
+            opportunities.append("Büyük şirketler sektör lideri/benchmark olarak kullanılabilir.")
+
+    if sector_info != "N/A":
+        strengths.append(f"Şirketin sektörü: {sector_info}.")
+    if industry != "N/A":
+        strengths.append(f"Şirketin endüstrisi: {industry}.")
+
+    try:
+        if revenue_growth is not None and revenue_growth > 0.10:
+            strengths.append("Gelir büyümesi pozitif görünüyor.")
+        elif revenue_growth is not None and revenue_growth < 0:
+            weaknesses.append("Gelir büyümesi negatif görünüyor.")
+    except Exception:
+        pass
+
+    try:
+        if profit_margins is not None and profit_margins < 0:
+            weaknesses.append("Net kâr marjı negatif; şirket henüz kârlı olmayabilir.")
+            threats.append("Kârlılığa geçiş gecikirse sermaye artırımı veya borçlanma riski artabilir.")
+    except Exception:
+        pass
+
+    try:
+        if free_cashflow is not None and free_cashflow < 0:
+            weaknesses.append("Free cash flow negatif; nakit yakma riski olabilir.")
+    except Exception:
+        pass
+
+    if priority_score >= 70:
+        opportunities.append("Araştırma Öncelik Skoru güçlü; derin araştırma listesine alınabilir.")
+
+    if risk_score >= 60:
+        threats.append("Risk skoru yüksek; bilanço, nakit ve borç durumu ayrıca incelenmelidir.")
+
+    weaknesses.append("Bu SWOT, ücretsiz veri ve kural tabanlı sistemle üretilmiştir; AI analizi değildir.")
+    threats.append("Veriler eksik, gecikmeli veya hatalı olabilir; yatırım kararı öncesi SEC dosyaları ve bilanço manuel kontrol edilmelidir.")
+
+    return strengths, weaknesses, opportunities, threats
 
 
 # --------------------------------------------------
@@ -463,288 +1032,7 @@ def tradingview_symbol_link(ticker, exchange):
 
 
 # --------------------------------------------------
-# Skor sistemi
-# --------------------------------------------------
-
-def calculate_scores(info, contracts, theme, filings):
-    early_score = 0
-    risk_score = 0
-    notes = []
-
-    market_cap = info.get("marketCap")
-    revenue_growth = info.get("revenueGrowth")
-    debt_to_equity = info.get("debtToEquity")
-    total_cash = info.get("totalCash")
-    total_debt = info.get("totalDebt")
-    current_price = info.get("currentPrice")
-    target_mean_price = info.get("targetMeanPrice")
-    profit_margins = info.get("profitMargins")
-    operating_margins = info.get("operatingMargins")
-    free_cashflow = info.get("freeCashflow")
-    beta = info.get("beta")
-
-    contract_summary = summarize_contracts(contracts)
-    total_contract_value = contract_summary["total_contract_value"]
-
-    try:
-        if market_cap:
-            if 50_000_000 <= market_cap <= 300_000_000:
-                early_score += 22
-                risk_score += 8
-                notes.append("Micro-cap aralığında; erken aşama fırsat olabilir ama risk yüksektir.")
-            elif 300_000_000 < market_cap <= 2_000_000_000:
-                early_score += 25
-                risk_score += 5
-                notes.append("Small-cap aralığında; erken büyüme fırsatlarına uygun olabilir.")
-            elif 2_000_000_000 < market_cap <= 10_000_000_000:
-                early_score += 12
-                notes.append("Mid-cap aralığında; artık çok erken aşama olmayabilir.")
-            elif market_cap > 10_000_000_000:
-                early_score -= 10
-                risk_score += 8
-                notes.append("Market cap büyük; 'çok erken keşif' potansiyeli daha sınırlı olabilir.")
-
-            if market_cap < 50_000_000:
-                risk_score += 25
-                notes.append("Çok küçük piyasa değeri yüksek likidite ve volatilite riski taşır.")
-    except Exception:
-        risk_score += 5
-
-    if contracts:
-        early_score += 20
-        notes.append("USAspending üzerinde hükümet kontratı/eşleşmesi bulundu.")
-
-        if contract_summary["nasa_total"] > 0:
-            early_score += 8
-            notes.append("NASA bağlantılı kontrat/eşleşme bulundu.")
-
-        if contract_summary["dod_total"] > 0:
-            early_score += 8
-            notes.append("DoD / savunma bağlantılı kontrat/eşleşme bulundu.")
-
-        if contract_summary["doe_total"] > 0:
-            early_score += 5
-            notes.append("DOE / enerji bağlantılı kontrat/eşleşme bulundu.")
-
-        try:
-            if market_cap and total_contract_value:
-                contract_to_market_cap = total_contract_value / market_cap
-
-                if contract_to_market_cap >= 0.10:
-                    early_score += 25
-                    notes.append("Kontrat toplamı market cap'e göre çok anlamlı görünüyor.")
-                elif contract_to_market_cap >= 0.03:
-                    early_score += 15
-                    notes.append("Kontrat toplamı market cap'e göre orta düzeyde anlamlı.")
-                elif contract_to_market_cap >= 0.005:
-                    early_score += 7
-                    notes.append("Kontrat toplamı market cap'e göre sınırlı ama izlenebilir.")
-                else:
-                    early_score += 2
-                    risk_score += 5
-                    notes.append("Kontrat toplamı market cap'e göre oldukça küçük.")
-        except Exception:
-            pass
-    else:
-        risk_score += 5
-        notes.append("USAspending üzerinde net kontrat eşleşmesi bulunamadı.")
-
-    strategic_themes = list(THEME_WATCHLISTS.keys())
-    if theme in strategic_themes:
-        early_score += 12
-        notes.append(f"{theme} stratejik büyüme temalarından biri olarak işaretlendi.")
-
-    try:
-        if revenue_growth is not None:
-            if revenue_growth > 0.30:
-                early_score += 15
-                notes.append("Gelir büyümesi güçlü görünüyor.")
-            elif revenue_growth > 0.10:
-                early_score += 8
-                notes.append("Gelir büyümesi pozitif görünüyor.")
-            elif revenue_growth < 0:
-                risk_score += 12
-                notes.append("Gelir büyümesi negatif görünüyor.")
-    except Exception:
-        pass
-
-    try:
-        if profit_margins is not None and profit_margins < 0:
-            risk_score += 15
-            notes.append("Net kâr marjı negatif; kârlılık riski var.")
-    except Exception:
-        pass
-
-    try:
-        if operating_margins is not None and operating_margins < 0:
-            risk_score += 10
-            notes.append("Operasyonel marj negatif; operasyonel kârlılık riski var.")
-    except Exception:
-        pass
-
-    try:
-        if free_cashflow is not None and free_cashflow < 0:
-            risk_score += 15
-            notes.append("Free cash flow negatif; nakit yakma riski olabilir.")
-    except Exception:
-        pass
-
-    try:
-        if total_debt and total_cash and total_debt > total_cash:
-            risk_score += 15
-            notes.append("Toplam borç nakitten yüksek görünüyor.")
-        elif total_cash and total_debt and total_cash > total_debt:
-            early_score += 5
-            notes.append("Nakit, borçtan yüksek görünüyor.")
-    except Exception:
-        pass
-
-    try:
-        if debt_to_equity is not None and debt_to_equity > 100:
-            risk_score += 10
-            notes.append("Debt/equity yüksek görünüyor.")
-    except Exception:
-        pass
-
-    try:
-        if beta is not None:
-            if beta > 2:
-                risk_score += 10
-                notes.append("Beta yüksek; hisse piyasa ortalamasından daha volatil olabilir.")
-            elif beta > 1.5:
-                risk_score += 5
-                notes.append("Beta orta-yüksek; volatilite izlenmeli.")
-    except Exception:
-        pass
-
-    if filings:
-        early_score += 3
-        notes.append("SEC EDGAR dosyaları bulundu; halka açık veriler izlenebilir.")
-    else:
-        risk_score += 8
-        notes.append("SEC dosyası bulunamadı veya ticker eşleşmedi.")
-
-    try:
-        if current_price and target_mean_price:
-            if target_mean_price > current_price:
-                early_score += 3
-                notes.append("Analist ortalama hedef fiyatı mevcut fiyatın üzerinde görünüyor.")
-            elif target_mean_price < current_price:
-                risk_score += 3
-                notes.append("Analist ortalama hedef fiyatı mevcut fiyatın altında görünüyor.")
-    except Exception:
-        pass
-
-    missing_fields = 0
-    for field in [
-        market_cap,
-        revenue_growth,
-        total_cash,
-        total_debt,
-        profit_margins,
-        operating_margins,
-        free_cashflow,
-    ]:
-        if field is None:
-            missing_fields += 1
-
-    if missing_fields >= 4:
-        risk_score += 12
-        notes.append("Finansal veri alanlarında ciddi eksiklik var.")
-    elif missing_fields >= 2:
-        risk_score += 6
-        notes.append("Bazı finansal veri alanları eksik.")
-
-    early_score = max(0, min(100, early_score))
-    risk_score = max(0, min(100, risk_score))
-
-    return early_score, risk_score, notes
-
-
-# --------------------------------------------------
-# SWOT
-# --------------------------------------------------
-
-def generate_rule_based_swot(info, contracts, theme, early_score, risk_score):
-    strengths = []
-    weaknesses = []
-    opportunities = []
-    threats = []
-
-    market_cap = info.get("marketCap")
-    sector = safe_get(info, "sector")
-    industry = safe_get(info, "industry")
-    profit_margins = info.get("profitMargins")
-    free_cashflow = info.get("freeCashflow")
-    revenue_growth = info.get("revenueGrowth")
-
-    contract_summary = summarize_contracts(contracts)
-
-    if contracts:
-        strengths.append("USAspending verisinde hükümet kontratı/eşleşmesi bulundu.")
-        opportunities.append("Federal kurumlarla iş ilişkisi büyüme katalizörü olabilir.")
-
-        if contract_summary["nasa_total"] > 0:
-            strengths.append("NASA bağlantılı kontrat/eşleşme bulunuyor.")
-
-        if contract_summary["dod_total"] > 0:
-            strengths.append("DoD / savunma bağlantılı kontrat/eşleşme bulunuyor.")
-    else:
-        weaknesses.append("USAspending tarafında şirket adıyla net kontrat eşleşmesi bulunamadı.")
-        threats.append("Hükümet kontratı iddiası varsa ayrıca manuel doğrulama gerekir.")
-
-    if theme in ["AI", "Cybersecurity", "Defense Technology", "Space Data", "Quantum", "Energy Infrastructure"]:
-        opportunities.append(f"{theme} teması uzun vadeli stratejik büyüme alanlarından biri olabilir.")
-
-    if market_cap:
-        category = get_market_cap_category(market_cap)
-
-        if "Small-cap" in category or "Micro-cap" in category:
-            strengths.append("Şirket küçük/orta ölçekli olduğu için büyüme potansiyeli yüksek olabilir.")
-            threats.append("Küçük ölçekli şirketlerde likidite, sermaye artırımı ve volatilite riski daha yüksektir.")
-        elif "Large-cap" in category or "Mega-cap" in category:
-            weaknesses.append("Şirket artık büyük ölçekli olabilir; erken aşama getiri potansiyeli sınırlanmış olabilir.")
-
-    if sector != "N/A":
-        strengths.append(f"Şirketin sektörü: {sector}.")
-    if industry != "N/A":
-        strengths.append(f"Şirketin endüstrisi: {industry}.")
-
-    try:
-        if revenue_growth is not None and revenue_growth > 0.10:
-            strengths.append("Gelir büyümesi pozitif görünüyor.")
-        elif revenue_growth is not None and revenue_growth < 0:
-            weaknesses.append("Gelir büyümesi negatif görünüyor.")
-    except Exception:
-        pass
-
-    try:
-        if profit_margins is not None and profit_margins < 0:
-            weaknesses.append("Net kâr marjı negatif; şirket henüz kârlı olmayabilir.")
-            threats.append("Kârlılığa geçiş gecikirse sermaye artırımı veya borçlanma riski artabilir.")
-    except Exception:
-        pass
-
-    try:
-        if free_cashflow is not None and free_cashflow < 0:
-            weaknesses.append("Free cash flow negatif; nakit yakma riski olabilir.")
-    except Exception:
-        pass
-
-    if early_score >= 70:
-        opportunities.append("Erken sinyal skoru güçlü; derin araştırma listesine alınabilir.")
-
-    if risk_score >= 60:
-        threats.append("Risk skoru yüksek; bilanço, nakit ve borç durumu ayrıca incelenmelidir.")
-
-    weaknesses.append("Bu SWOT, ücretsiz veri ve kural tabanlı sistemle üretilmiştir; AI analizi değildir.")
-    threats.append("Veriler eksik, gecikmeli veya hatalı olabilir; yatırım kararı öncesi SEC dosyaları ve bilanço manuel kontrol edilmelidir.")
-
-    return strengths, weaknesses, opportunities, threats
-
-
-# --------------------------------------------------
-# UI Sidebar
+# Sidebar
 # --------------------------------------------------
 
 with st.sidebar:
@@ -752,21 +1040,21 @@ with st.sidebar:
 
     mode = st.radio(
         "Mod seçin",
-        ["Tek şirket analizi", "Sektör tarayıcısı"],
+        ["Sektör tarayıcısı", "Tek şirket analizi"],
         index=0,
     )
 
     if "watchlist" not in st.session_state:
         st.session_state.watchlist = []
 
-    if mode == "Tek şirket analizi":
+    if mode == "Sektör tarayıcısı":
+        selected_sector = st.selectbox("Sektör seçin", list(SECTOR_UNIVERSE.keys()), index=0)
+        run_scan = st.button("Sektörü Tara", type="primary")
+    else:
         ticker = st.text_input("Ticker girin", value="RKLB")
         company_name = st.text_input("Şirket adı girin", value="Rocket Lab")
-        theme = st.selectbox("Tema seçin", list(THEME_WATCHLISTS.keys()), index=3)
+        selected_sector = st.selectbox("Sektör seçin", list(SECTOR_UNIVERSE.keys()), index=3)
         run_analysis = st.button("Ücretsiz Verilerle Analiz Et", type="primary")
-    else:
-        theme = st.selectbox("Tema seçin", list(THEME_WATCHLISTS.keys()), index=3)
-        run_scan = st.button("Sektörü Tara", type="primary")
 
     st.markdown("---")
     st.subheader("İzleme Listesi")
@@ -794,14 +1082,205 @@ with st.sidebar:
 
 st.info(
     "Bu uygulama yatırım tavsiyesi değildir. "
-    "Ücretsiz ve açık kaynak/veri kaynaklarıyla ön araştırma yapar."
+    "Ücretsiz ve açık kaynak/veri kaynaklarıyla ön araştırma ve senaryo analizi yapar."
 )
 
 # --------------------------------------------------
-# Mod 1: Tek şirket analizi
+# Sektör tarayıcısı
 # --------------------------------------------------
 
-if mode == "Tek şirket analizi" and run_analysis:
+if mode == "Sektör tarayıcısı" and run_scan:
+    companies = SECTOR_UNIVERSE.get(selected_sector, [])
+
+    st.header(f"{selected_sector} Sektörü Tarama Sonuçları")
+    st.caption(
+        "Şirketler market cap'e göre Small Cap / Mid Cap / Large Cap olarak ayrılır. "
+        "Büyük şirketler erken fırsat değil, sektör lideri/benchmark olarak gösterilir."
+    )
+
+    results = []
+    progress = st.progress(0)
+
+    for i, (ticker_scan, name_scan) in enumerate(companies):
+        with st.spinner(f"{ticker_scan} analiz ediliyor..."):
+            try:
+                info_scan, hist_scan = get_stock_data(ticker_scan)
+
+                search_names_scan = get_official_company_names(info_scan, name_scan)
+                contracts_scan = get_usaspending_contracts_smart(search_names_scan)
+
+                cik_scan, sec_name_scan, filings_scan = get_sec_recent_filings(ticker_scan)
+
+                priority_score, risk_score, _ = calculate_research_priority_score(
+                    info=info_scan,
+                    contracts=contracts_scan,
+                    sector=selected_sector,
+                    filings=filings_scan,
+                )
+
+                momentum_score, _ = calculate_momentum_score(hist_scan)
+                financial_score, _ = calculate_financial_health_score(info_scan)
+                catalyst_score, _ = calculate_catalyst_score(contracts_scan, filings_scan, selected_sector)
+
+                market_cap_scan = info_scan.get("marketCap")
+                contract_summary_scan = summarize_contracts(contracts_scan)
+
+                role = get_company_role(market_cap_scan, priority_score, risk_score)
+                outlook = get_outlook_label(
+                    priority_score,
+                    risk_score,
+                    momentum_score,
+                    financial_score,
+                    catalyst_score,
+                )
+
+                results.append(
+                    {
+                        "Ticker": ticker_scan,
+                        "Şirket": safe_get(info_scan, "longName", name_scan),
+                        "Fiyat": format_number(info_scan.get("currentPrice")),
+                        "Market Cap": format_number(market_cap_scan),
+                        "Market Cap Raw": market_cap_scan,
+                        "Kategori": get_market_cap_category(market_cap_scan),
+                        "Grup": get_cap_bucket(market_cap_scan),
+                        "Rol": role,
+                        "Kontrat Sayısı": contract_summary_scan["contract_count"],
+                        "Toplam Kontrat": format_number(contract_summary_scan["total_contract_value"]),
+                        "Araştırma Öncelik Skoru": priority_score,
+                        "Risk Skoru": risk_score,
+                        "Momentum": momentum_score,
+                        "Finansal Sağlık": financial_score,
+                        "Katalizör": catalyst_score,
+                        "6-12 Ay Görünüm": outlook,
+                    }
+                )
+            except Exception:
+                results.append(
+                    {
+                        "Ticker": ticker_scan,
+                        "Şirket": name_scan,
+                        "Fiyat": "Hata",
+                        "Market Cap": "Hata",
+                        "Market Cap Raw": None,
+                        "Kategori": "Hata",
+                        "Grup": "Unknown",
+                        "Rol": "Needs Review",
+                        "Kontrat Sayısı": 0,
+                        "Toplam Kontrat": "N/A",
+                        "Araştırma Öncelik Skoru": 0,
+                        "Risk Skoru": 0,
+                        "Momentum": 0,
+                        "Finansal Sağlık": 0,
+                        "Katalizör": 0,
+                        "6-12 Ay Görünüm": "Unknown",
+                    }
+                )
+
+        progress.progress((i + 1) / len(companies))
+
+    if results:
+        df = pd.DataFrame(results)
+
+        display_cols = [
+            "Ticker",
+            "Şirket",
+            "Fiyat",
+            "Market Cap",
+            "Kategori",
+            "Rol",
+            "Kontrat Sayısı",
+            "Toplam Kontrat",
+            "Araştırma Öncelik Skoru",
+            "Risk Skoru",
+            "Momentum",
+            "Finansal Sağlık",
+            "Katalizör",
+            "6-12 Ay Görünüm",
+        ]
+
+        small_df = df[df["Grup"] == "Small Cap / Early Candidates"].sort_values(
+            "Araştırma Öncelik Skoru",
+            ascending=False,
+        )
+
+        mid_df = df[df["Grup"] == "Mid Cap / Growth Candidates"].sort_values(
+            "Araştırma Öncelik Skoru",
+            ascending=False,
+        )
+
+        large_df = df[df["Grup"] == "Large Cap / Sector Leaders"].sort_values(
+            "Market Cap Raw",
+            ascending=False,
+        )
+
+        unknown_df = df[df["Grup"] == "Unknown"]
+
+        tab1, tab2, tab3, tab4 = st.tabs(
+            [
+                "Small Cap / Early Candidates",
+                "Mid Cap / Growth Candidates",
+                "Large Cap / Sector Leaders",
+                "Tüm Sonuçlar",
+            ]
+        )
+
+        with tab1:
+            st.subheader("Small Cap / Early Candidates")
+            st.caption("Bu bölüm senin stratejin için en önemli bölüm: küçük piyasa değerli, erken araştırma adayı şirketler.")
+            if not small_df.empty:
+                st.dataframe(small_df[display_cols], use_container_width=True)
+            else:
+                st.info("Bu sektörde small-cap aday bulunamadı.")
+
+        with tab2:
+            st.subheader("Mid Cap / Growth Candidates")
+            st.caption("Bu şirketler artık çok erken aşama olmayabilir, fakat büyüme potansiyeli devam edebilir.")
+            if not mid_df.empty:
+                st.dataframe(mid_df[display_cols], use_container_width=True)
+            else:
+                st.info("Bu sektörde mid-cap aday bulunamadı.")
+
+        with tab3:
+            st.subheader("Large Cap / Sector Leaders")
+            st.caption("Bu şirketler erken fırsat olarak değil, sektör lideri ve benchmark olarak değerlendirilmelidir.")
+            if not large_df.empty:
+                st.dataframe(large_df[display_cols], use_container_width=True)
+            else:
+                st.info("Bu sektörde large-cap lider bulunamadı.")
+
+        with tab4:
+            st.subheader("Tüm Sonuçlar")
+            all_df = df.sort_values("Araştırma Öncelik Skoru", ascending=False)
+            st.dataframe(all_df[display_cols], use_container_width=True)
+
+            if not unknown_df.empty:
+                with st.expander("Verisi eksik / bilinmeyen şirketler"):
+                    st.dataframe(unknown_df[display_cols], use_container_width=True)
+
+        csv_data = df[display_cols].to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="Tüm sonuçları CSV indir",
+            data=csv_data,
+            file_name=f"{selected_sector}_sector_scan_{datetime.today().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+        )
+
+        sorted_df = df.sort_values("Araştırma Öncelik Skoru", ascending=False)
+
+        if not sorted_df.empty:
+            best = sorted_df.iloc[0]
+            st.success(
+                f"En yüksek Araştırma Öncelik Skoru: "
+                f"**{best['Ticker']}** ({best['Şirket']}) — "
+                f"{best['Araştırma Öncelik Skoru']}/100"
+            )
+
+# --------------------------------------------------
+# Tek şirket analizi
+# --------------------------------------------------
+
+elif mode == "Tek şirket analizi" and run_analysis:
     ticker = ticker.upper().strip()
     manual_company_name = company_name.strip()
 
@@ -814,23 +1293,37 @@ if mode == "Tek şirket analizi" and run_analysis:
         cik, sec_name, filings = get_sec_recent_filings(ticker)
         form4_filings = get_insider_form4_filings(filings)
 
-        early_score, risk_score, score_notes = calculate_scores(
+        priority_score, risk_score, score_notes = calculate_research_priority_score(
             info=info,
             contracts=contracts,
-            theme=theme,
+            sector=selected_sector,
             filings=filings,
         )
+
+        momentum_score, momentum_notes = calculate_momentum_score(hist)
+        financial_score, financial_notes = calculate_financial_health_score(info)
+        catalyst_score, catalyst_notes = calculate_catalyst_score(contracts, filings, selected_sector)
 
         strengths, weaknesses, opportunities, threats = generate_rule_based_swot(
             info=info,
             contracts=contracts,
-            theme=theme,
-            early_score=early_score,
+            sector=selected_sector,
+            priority_score=priority_score,
             risk_score=risk_score,
         )
 
         contract_summary = summarize_contracts(contracts)
-        ma50, ma200, rsi_current = calculate_technical_indicators(hist)
+        ma50, ma200, rsi_current, one_year_return = calculate_technical_indicators(hist)
+
+        scenarios_df, scenario_summary = generate_price_scenarios(
+            current_price=info.get("currentPrice"),
+            priority_score=priority_score,
+            risk_score=risk_score,
+            momentum_score=momentum_score,
+            financial_score=financial_score,
+            catalyst_score=catalyst_score,
+            market_cap=info.get("marketCap"),
+        )
 
     display_name = safe_get(info, "longName", manual_company_name or ticker)
 
@@ -845,6 +1338,7 @@ if mode == "Tek şirket analizi" and run_analysis:
 
     market_cap = info.get("marketCap")
     market_cap_category = get_market_cap_category(market_cap)
+    cap_bucket = get_cap_bucket(market_cap)
 
     total_contract_value = contract_summary["total_contract_value"]
 
@@ -857,16 +1351,22 @@ if mode == "Tek şirket analizi" and run_analysis:
 
     col1.metric("Fiyat", format_number(info.get("currentPrice")))
     col2.metric("Market Cap", format_number(market_cap))
-    col3.metric("Erken Sinyal Skoru", f"{early_score}/100")
+    col3.metric("Araştırma Öncelik Skoru", f"{priority_score}/100")
     col4.metric("Risk Skoru", f"{risk_score}/100")
 
-    st.markdown("### Piyasa Değeri Kategorisi")
-    st.write(f"**Kategori:** {market_cap_category}")
+    score_cols = st.columns(3)
+    score_cols[0].metric("Momentum Skoru", f"{momentum_score}/100")
+    score_cols[1].metric("Finansal Sağlık Skoru", f"{financial_score}/100")
+    score_cols[2].metric("Katalizör Skoru", f"{catalyst_score}/100")
 
-    if market_cap and market_cap > 10_000_000_000:
+    st.markdown("### Piyasa Değeri ve Rol")
+    st.write(f"**Kategori:** {market_cap_category}")
+    st.write(f"**Grup:** {cap_bucket}")
+    st.write(f"**Rol:** {get_company_role(market_cap, priority_score, risk_score)}")
+
+    if cap_bucket == "Large Cap / Sector Leaders":
         st.warning(
-            "Bu şirket artık large-cap kategorisine yakın veya içinde olabilir. "
-            "Bu nedenle 'çok erken keşif' potansiyeli sınırlı olabilir."
+            "Bu şirket büyük ölçekli görünüyor. Erken fırsat olarak değil, sektör lideri/benchmark olarak değerlendirilmelidir."
         )
 
     if rsi_current is not None:
@@ -886,7 +1386,7 @@ if mode == "Tek şirket analizi" and run_analysis:
     profile_cols[0].write(f"**Sektör:** {safe_get(info, 'sector')}")
     profile_cols[1].write(f"**Endüstri:** {safe_get(info, 'industry')}")
     profile_cols[2].write(f"**Borsa:** {safe_get(info, 'exchange')}")
-    profile_cols[3].write(f"**Market Cap Kategorisi:** {market_cap_category}")
+    profile_cols[3].write(f"**Uygulama Sektörü:** {selected_sector}")
 
     if search_names:
         with st.expander("USAspending aramasında kullanılan şirket adları"):
@@ -954,6 +1454,18 @@ if mode == "Tek şirket analizi" and run_analysis:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("Fiyat geçmişi bulunamadı.")
+
+    st.subheader("6-12 Aylık Fiyat Senaryo Analizi")
+
+    st.caption(
+        "Bu bölüm otomatik ve kural tabanlıdır. Kesin hedef fiyat veya yatırım tavsiyesi değildir."
+    )
+
+    if scenarios_df is not None:
+        st.write(scenario_summary)
+        st.dataframe(scenarios_df, use_container_width=True)
+    else:
+        st.warning(scenario_summary)
 
     st.subheader("USAspending Hükümet Kontratları")
 
@@ -1032,8 +1544,21 @@ if mode == "Tek şirket analizi" and run_analysis:
 
     st.subheader("Skor Notları")
 
-    for note in score_notes:
-        st.write(f"- {note}")
+    with st.expander("Araştırma Öncelik Skoru Notları"):
+        for note in score_notes:
+            st.write(f"- {note}")
+
+    with st.expander("Momentum Notları"):
+        for note in momentum_notes:
+            st.write(f"- {note}")
+
+    with st.expander("Finansal Sağlık Notları"):
+        for note in financial_notes:
+            st.write(f"- {note}")
+
+    with st.expander("Katalizör Notları"):
+        for note in catalyst_notes:
+            st.write(f"- {note}")
 
     st.subheader("Kural Tabanlı SWOT Analizi")
 
@@ -1059,21 +1584,31 @@ if mode == "Tek şirket analizi" and run_analysis:
 
     st.subheader("Sonuç Yorumu")
 
-    if early_score >= 70 and risk_score <= 50:
+    outlook = get_outlook_label(
+        priority_score,
+        risk_score,
+        momentum_score,
+        financial_score,
+        catalyst_score,
+    )
+
+    st.write(f"**6-12 Ay Genel Görünüm:** {outlook}")
+
+    if priority_score >= 70 and risk_score <= 50:
         st.success(
-            "Ön sinyal güçlü görünüyor. Yine de SEC dosyaları, bilanço ve haberler manuel doğrulanmalı."
+            "Araştırma önceliği güçlü görünüyor. Yine de SEC dosyaları, bilanço ve haberler manuel doğrulanmalı."
         )
-    elif early_score >= 60 and risk_score <= 70:
+    elif priority_score >= 60 and risk_score <= 70:
         st.warning(
             "Orta-güçlü sinyal var. Şirket derin araştırmaya alınabilir ama riskler dikkatle incelenmeli."
         )
-    elif early_score >= 40:
+    elif priority_score >= 40:
         st.info(
             "Orta seviye sinyal var. İzleme listesine alınabilir, ancak acele yatırım kararı verilmemeli."
         )
     else:
         st.info(
-            "Erken sinyal zayıf veya veri yetersiz. Daha fazla doğrulama gerekir."
+            "Araştırma önceliği zayıf veya veri yetersiz. Daha fazla doğrulama gerekir."
         )
 
     st.caption(
@@ -1081,89 +1616,5 @@ if mode == "Tek şirket analizi" and run_analysis:
         "Yatırım tavsiyesi değildir."
     )
 
-# --------------------------------------------------
-# Mod 2: Sektör tarayıcısı
-# --------------------------------------------------
-
-elif mode == "Sektör tarayıcısı" and run_scan:
-    companies = THEME_WATCHLISTS.get(theme, [])
-
-    st.header(f"Sektör Tarayıcısı: {theme}")
-    st.caption(f"{len(companies)} şirket ücretsiz kaynaklarla taranıyor.")
-
-    results = []
-    progress = st.progress(0)
-
-    for i, (ticker_scan, name_scan) in enumerate(companies):
-        with st.spinner(f"{ticker_scan} analiz ediliyor..."):
-            try:
-                info_scan, _ = get_stock_data(ticker_scan)
-
-                search_names_scan = get_official_company_names(info_scan, name_scan)
-                contracts_scan = get_usaspending_contracts_smart(search_names_scan)
-
-                cik_scan, sec_name_scan, filings_scan = get_sec_recent_filings(ticker_scan)
-
-                early_score_scan, risk_score_scan, _ = calculate_scores(
-                    info=info_scan,
-                    contracts=contracts_scan,
-                    theme=theme,
-                    filings=filings_scan,
-                )
-
-                market_cap_scan = info_scan.get("marketCap")
-                contract_summary_scan = summarize_contracts(contracts_scan)
-
-                results.append(
-                    {
-                        "Ticker": ticker_scan,
-                        "Şirket": safe_get(info_scan, "longName", name_scan),
-                        "Fiyat": format_number(info_scan.get("currentPrice")),
-                        "Market Cap": format_number(market_cap_scan),
-                        "Kategori": get_market_cap_category(market_cap_scan),
-                        "Kontrat Sayısı": contract_summary_scan["contract_count"],
-                        "Toplam Kontrat": format_number(contract_summary_scan["total_contract_value"]),
-                        "Erken Sinyal": early_score_scan,
-                        "Risk Skoru": risk_score_scan,
-                    }
-                )
-            except Exception:
-                results.append(
-                    {
-                        "Ticker": ticker_scan,
-                        "Şirket": name_scan,
-                        "Fiyat": "Hata",
-                        "Market Cap": "Hata",
-                        "Kategori": "Hata",
-                        "Kontrat Sayısı": 0,
-                        "Toplam Kontrat": "N/A",
-                        "Erken Sinyal": 0,
-                        "Risk Skoru": 0,
-                    }
-                )
-
-        progress.progress((i + 1) / len(companies))
-
-    if results:
-        df = pd.DataFrame(results).sort_values("Erken Sinyal", ascending=False)
-
-        st.dataframe(df, use_container_width=True)
-
-        csv_data = df.to_csv(index=False).encode("utf-8")
-
-        st.download_button(
-            label="Sonuçları CSV indir",
-            data=csv_data,
-            file_name=f"{theme}_sector_scan_{datetime.today().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-        )
-
-        best = df.iloc[0]
-
-        st.success(
-            f"En yüksek Erken Sinyal Skoru: "
-            f"**{best['Ticker']}** ({best['Şirket']}) — {best['Erken Sinyal']}/100"
-        )
-
 else:
-    st.write("Sol menüden analiz modu seçerek başlayabilirsin.")
+    st.write("Sol menüden sektör seçerek tarama başlatabilir veya tek şirket analizi yapabilirsin.")
