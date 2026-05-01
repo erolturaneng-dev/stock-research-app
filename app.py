@@ -2426,4 +2426,4 @@ elif mode == "Tek Şirket Analizi":
 
     if run_single or should_auto_run:
         if should_auto_run:
-            ticker = st.session_state.selected_single_ticker)
+            ticker = st.session_state.selected_single_ticker
