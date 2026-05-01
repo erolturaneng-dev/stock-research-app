@@ -5,12 +5,12 @@ import yfinance as yf
 from io import StringIO
 from datetime import datetime
 
-st.set_page_config(page_title="US Technology Company Scanner", layout="wide")
+st.set_page_config(page_title="US Technology Company Discovery Scanner", layout="wide")
 
-st.title("US Technology Company Scanner")
+st.title("US Technology Company Discovery Scanner")
 st.caption(
-    "ABD borsalarındaki şirketleri tarar, SEC CIK / ticker eşleşmesi yapar, "
-    "yfinance ile teknoloji şirketlerini filtreler."
+    "Scans US-listed companies, matches SEC CIK/ticker IDs, and filters technology candidates "
+    "by sector, industry, market cap and company profile."
 )
 
 # --------------------------------------------------
@@ -71,7 +71,7 @@ def is_technology_candidate(sector, industry, company_name):
         "cloud",
         "data",
         "artificial intelligence",
-        "ai",
+        " ai ",
         "machine learning",
         "analytics",
         "automation",
